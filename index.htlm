@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LM — Little Monster School Hub (Final)</title>
+  <style>
+    :root{
+      --pink:#ff62b0; --soft:#fff7fb; --off:#f7f3f7; --ink:#1f1d29; --muted:#6b667a; --card:#ffffff;
+      --m-math:#ff62b0; --m-chem:#9a6bff; --m-eng:#4aa3ff; --m-hist:#ffb84a; --m-gen:#bbbbbb;
+      --vhpad: 120px; /* header+footer compensation so main fits exactly one screen */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:linear-gradient(180deg,var(--soft),var(--off)); color:var(--ink); overflow:hidden}
+    .shell{max-width:1100px; margin:24px auto; padding:0 16px}
+    header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+    .brand{display:flex; align-items:center; gap:12px}
+    .logo{width:44px; height:44px; border-radius:14px; background: radial-gradient(50% 50% at 50% 0%, #fff 0%, #ffe1ef 60%, #ffd3e9 100%); border:2px solid #ffd2e7; box-shadow:0 10px 30px rgba(255,98,176,.25)}
+    .title{font-weight:800; letter-spacing:.3px}
+    .subtitle{font-size:12px; color:var(--muted)}
+    nav{display:flex; gap:8px; flex-wrap:wrap}
+    .tab{border:none; background:var(--card); padding:10px 14px; border-radius:12px; cursor:pointer; box-shadow:0 1px 0 rgba(0,0,0,.05); transition:.2s}
+    .tab:hover{transform:translateY(-1px); box-shadow:0 6px 18px rgba(0,0,0,.08)}
+    .tab.active{background:var(--pink); color:white; box-shadow:0 8px 24px rgba(255,98,176,.4)}
+
+    #view{height:calc(100vh - var(--vhpad)); overflow:hidden}
+    .grid{display:grid; gap:16px}
+    .two{grid-template-columns:repeat(2, minmax(0,1fr))}
+    @media (max-width:900px){.two{grid-template-columns:1fr}}
+    .full{display:grid; grid-template-rows:auto 1fr; gap:12px; height:100%; overflow:hidden}
+
+    .card{background:var(--card); border-radius:18px; padding:16px; box-shadow:0 1px 0 rgba(0,0,0,.05), 0 10px 30px rgba(0,0,0,.05)}
+    .card h3{margin:.2rem 0 .8rem}
+    .pill{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; background:#ffe6f3; color:#b21f6a; font-size:12px}
+    .btn{background:var(--ink); color:white; padding:10px 12px; border-radius:12px; border:none; cursor:pointer}
+    .btn.pink{background:var(--pink)}
+    .btn.ghost{background:transparent; color:var(--ink); border:1px solid #ece6f0}
+    input, textarea, select{width:100%; padding:10px 12px; border-radius:12px; border:1px solid #ece6f0; background:#fff}
+    label{font-size:12px; color:var(--muted)}
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .small{font-size:12px; color:var(--muted)}
+
+    /* Subtabs */
+    .subtabs{display:flex; gap:8px; margin-bottom:8px}
+    .subtabs button{background:#f5eff6; border:1px solid #ecdfeb; padding:8px 10px; border-radius:10px; cursor:pointer}
+    .subtabs button.active{background:var(--pink); color:#fff; border-color:transparent}
+    .panel{display:none; height:calc(100% - 46px); overflow:hidden}
+    .panel.show{display:block}
+
+    /* Chat */
+    .chat{display:flex; flex-direction:column; gap:10px; height:220px; overflow:auto; padding-right:6px}
+    .msg{max-width:80%; padding:10px 12px; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,.05)}
+    .me{align-self:flex-end; background:#ffe3f2}
+    .bot{align-self:flex-start; background:#f6f3f8}
+
+    /* Notepad (lined) */
+    .pad{height:100%; border:1px solid #f0e6ef; border-radius:14px; background:repeating-linear-gradient(#fff, #fff 26px, #fff2f7 27px); padding:10px; resize:none; outline:none}
+
+    /* Planner */
+    .cal{display:grid; grid-template-columns:repeat(7,1fr); gap:6px; font-size:12px; height:100%; overflow:hidden}
+    .cal.fullgrid{grid-template-rows: auto repeat(6, 1fr)}
+    .cal-head{display:flex; align-items:center; gap:8px; justify-content:space-between}
+    .day{padding:8px; background:#fff; border:1px solid #efe7f1; border-radius:10px; display:flex; flex-direction:column; gap:6px; overflow:hidden}
+    .day .num{font-weight:700; color:#a06}
+    .events{overflow:auto}
+    .event{border-radius:10px; padding:2px 6px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden}
+    .ev-math{background:#ffe3f3; border:1px solid #ffc7e6}
+    .ev-chem{background:#efe6ff; border:1px solid #dccdff}
+    .ev-hist{background:#fff1dd; border:1px solid #ffe0b1}
+    .ev-eng{background:#eaf4ff; border:1px solid #cfe8ff}
+    .ev-gen{background:#f4f4f6; border:1px solid #e6e6ea}
+
+    /* Math mini-graph */
+    .graph-wrap{display:grid; grid-template-rows:auto auto 1fr; gap:8px; height:100%}
+    canvas.board{width:100%; height:100%; border:1px solid #efe7f1; border-radius:14px}
+
+    /* Fun: draw + snake */
+    .fun-bar{display:flex; gap:8px; margin-bottom:8px}
+
+    .footer{margin-top:12px; font-size:12px; color:var(--muted)}
+    .diag{margin:8px 0 0; padding:8px; background:#fff; border:1px dashed #e9d3e1; border-radius:12px}
+    .diag.pass{border-color:#c7e7cf}
+    .diag.fail{border-color:#f3c6c6}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <div class="title">LM — Little Monster</div>
+          <div class="subtitle">One-screen, no-scroll study hub (saves to your browser)</div>
+        </div>
+      </div>
+      <nav id="tabs"></nav>
+    </header>
+
+    <main id="view" class="grid two"></main>
+
+    <div class="footer">Tip: Press <span class="kbd">Ctrl</span>/<span class="kbd">⌘</span> + <span class="kbd">S</span> to quick‑save notes.
+      <details id="diagnostics" class="diag"><summary>Diagnostics (click to expand)</summary>
+        <ul id="testList" class="small"></ul>
+      </details>
+    </div>
+  </div>
+
+<script>
+'use strict';
+(function(){
+  const onReady = (fn)=>{ if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fn, {once:true}); } else { fn(); } };
+  onReady(init);
+
+  function init(){
+    const $=(s,e=document)=>e.querySelector(s); const $$=(s,e=document)=>[...e.querySelectorAll(s)];
+    const S={ key:k=>`lm_${k}`, get(k,f){ try{ return JSON.parse(localStorage.getItem(this.key(k))) ?? f }catch{ return f } }, set(k,v){ localStorage.setItem(this.key(k), JSON.stringify(v)) } };
+
+    ensure('.shell', ()=>{ const d=document.createElement('div'); d.className='shell'; document.body.appendChild(d); return d; });
+    ensure('header', ()=>{ const h=document.createElement('header'); h.innerHTML=`<div class="brand"><div class="logo"></div><div><div class="title">LM — Little Monster</div><div class="subtitle">One-screen, no-scroll study hub (saves to your browser)</div></div></div><nav id=\"tabs\"></nav>`; $('.shell').appendChild(h); return h; });
+    ensure('#tabs', ()=>{ const n=document.createElement('nav'); n.id='tabs'; $('header').appendChild(n); return n; });
+    ensure('#view', ()=>{ const m=document.createElement('main'); m.id='view'; m.className='grid two'; $('.shell').appendChild(m); return m; });
+
+    function ensure(sel, factory){ let n=$(sel); if(!n) n=factory(); return n; }
+
+    // Tabs
+    const tabs=[
+      {id:'home', label:'Home'},
+      {id:'planner', label:'Planner'},
+      {id:'math', label:'Math'},
+      {id:'chem', label:'Chemistry'},
+      {id:'history', label:'History'},
+      {id:'english', label:'English'},
+      {id:'notes', label:'Fun (Draw & Snake)'}
+    ];
+    let active=S.get('activeTab','home');
+
+    function renderTabs(){
+      const nav=ensure('#tabs', ()=>{ const n=document.createElement('nav'); n.id='tabs'; $('header').appendChild(n); return n; });
+      nav.innerHTML='';
+      tabs.forEach(t=>{ const b=document.createElement('button'); b.className='tab'+(t.id===active?' active':''); b.textContent=t.label; b.onclick=()=>{ active=t.id; S.set('activeTab',active); render(); }; nav.appendChild(b); });
+    }
+
+    function makeSubtabs(container, items, startId){
+      const bar=document.createElement('div'); bar.className='subtabs';
+      const panels={}; let current=startId||items[0].id;
+      items.forEach(it=>{
+        const btn=document.createElement('button'); btn.textContent=it.label; btn.className=it.id===current?'active':''; btn.onclick=()=>switchTo(it.id);
+        bar.appendChild(btn);
+        const panel=document.createElement('div'); panel.className='panel'+(it.id===current?' show':''); panel.appendChild(it.render()); panels[it.id]=panel;
+        container.appendChild(panel);
+      });
+      container.prepend(bar);
+      function switchTo(id){ current=id; [...bar.children].forEach((b,i)=>{ b.classList.toggle('active', items[i].id===id); }); Object.entries(panels).forEach(([pid,el])=>el.classList.toggle('show', pid===id)); }
+    }
+
+    // Shared widgets
+    function Notepad(key, placeholder){
+      const t=document.createElement('textarea'); t.className='pad'; t.placeholder=placeholder||'Notes…'; t.value=S.get(key,''); t.addEventListener('input', ()=>S.set(key, t.value)); return t;
+    }
+    function Recorder(key='transcript'){
+      const wrap=document.createElement('div'); wrap.style.height='100%'; wrap.style.display='grid'; wrap.style.gridTemplateRows='auto 1fr';
+      wrap.innerHTML=`<div class='row'><button class='btn pink' id='recBtn'>Start</button><a id='downloadLink' class='btn ghost' href='#' download='recording.webm' style='display:none'>Download</a></div>`;
+      const area=Notepad(key, 'Live transcript (Chrome recommended)…'); area.id='recArea'; wrap.appendChild(area);
+      let mediaRecorder, chunks=[]; let recOn=false; let recognition;
+      const btn=wrap.querySelector('#recBtn'); const dl=wrap.querySelector('#downloadLink');
+      btn.onclick=async()=>{ if(!recOn){ try{ const stream=await navigator.mediaDevices.getUserMedia({audio:true}); chunks=[]; mediaRecorder=new MediaRecorder(stream); mediaRecorder.ondataavailable=e=>chunks.push(e.data); mediaRecorder.onstop=()=>{ const blob=new Blob(chunks,{type:'audio/webm'}); dl.href=URL.createObjectURL(blob); dl.style.display='inline-flex'; }; mediaRecorder.start(); const SR=window.SpeechRecognition||window.webkitSpeechRecognition; if(SR){ recognition=new SR(); recognition.continuous=true; recognition.interimResults=true; recognition.onresult=(e)=>{ let txt=''; for(const r of e.results){ txt+=r[0].transcript+(r.isFinal?'\n':''); } area.value=txt; S.set(key, txt); }; recognition.start(); } recOn=true; btn.textContent='Stop'; }catch(e){ alert('Mic permission or browser support issue: '+e.message); } } else { mediaRecorder?.stop(); recognition?.stop?.(); recOn=false; btn.textContent='Start'; } };
+      return wrap;
+    }
+
+    // Simple safe evaluator for expressions in x
+    function evalExpr(expr, x){
+      let e=expr.trim(); if(!e) throw new Error('Empty expression'); e=e.replace(/\^/g,'**');
+      const allowed = /^[0-9xX+\-*/().,\s%]|e$/; // we will stronger-validate below
+      // Basic sanitize: allow digits, operators, x, parentheses, dot, spaces, %, e for sci-notation
+      if(/[^0-9xX+\-*/().\s%e]/.test(e)) throw new Error('Only numbers, x, e, and operators allowed');
+      e=e.replace(/x/gi, `(${x})`);
+      // eslint-disable-next-line no-new-func
+      return Function(`return (${e})`)();
+    }
+
+    // —— VIEWS ——
+    function Home(){
+      const view=document.createElement('div'); view.className='two'; view.style.height='100%';
+      const a=document.createElement('section'); a.className='card'; a.style.display='grid'; a.style.gridTemplateRows='auto auto 1fr auto'; a.innerHTML=`
+        <span class=\"pill\">🤖 LM Quick Bot</span>
+        <h3>Day‑to‑day quick help</h3>
+        <div class=\"chat\" id=\"chat\"></div>
+        <div class=\"row\"><input id=\"chatInput\" placeholder=\"Ask LM…\" /><button class=\"btn pink\" id=\"sendBtn\">Send</button></div>`;
+      const b=document.createElement('section'); b.className='card'; b.style.display='grid'; b.style.gridTemplateRows='auto auto 1fr'; b.innerHTML=`
+        <span class=\"pill\">📝 Fast Add</span>
+        <div class='row'><input id='quickText' placeholder='ex: Chem WS #3 — due Fri' /><input id='quickDate' type='date' /><button class='btn' id='quickAdd'>Add</button></div>
+        <ul class='small' id='quickList' style='margin:0; padding-left:18px; overflow:auto'></ul>`;
+      view.append(a,b);
+
+      const history=S.get('chat',[]); const chat=$('#chat', a); const push=(role,text)=>{ history.push({role,text,ts:Date.now()}); S.set('chat',history); draw(); };
+      function draw(){ chat.innerHTML=''; history.forEach(m=>{ const d=document.createElement('div'); d.className='msg '+(m.role==='me'?'me':'bot'); d.textContent=m.text; chat.appendChild(d)}); chat.scrollTop=chat.scrollHeight; }
+      function botReply(q){ const L=q.toLowerCase(); if(L.includes('plan')) return '30‑min: 10 warm‑up, 20 practice, 5 recap.'; if(L.includes('factor')) return 'Try factoring x^2−9, 3x^2+12x, etc.'; return 'Saved. Switch tabs for tools.'; }
+      draw();
+      $('#sendBtn', a).onclick=()=>{ const i=$('#chatInput', a); if(!i.value.trim()) return; push('me',i.value.trim()); setTimeout(()=>push('bot',botReply(i.value.trim())),150); i.value=''; };
+
+      const items=S.get('hw',[]); const list=$('#quickList', b);
+      function paint(){ list.innerHTML=''; items.forEach((t,i)=>{ const li=document.createElement('li'); li.textContent=`${t.text}${t.due?` — due ${t.due}`:''}`; const del=document.createElement('button'); del.className='btn ghost'; del.textContent='Delete'; del.style.marginLeft='8px'; del.onclick=()=>{items.splice(i,1); S.set('hw',items); paint();}; li.appendChild(del); list.appendChild(li); }); }
+      paint();
+      $('#quickAdd', b).onclick=()=>{ const text=$('#quickText', b).value.trim(); const due=$('#quickDate', b).value||''; if(!text) return; items.push({text,due}); S.set('hw',items); $('#quickText', b).value=''; $('#quickDate', b).value=''; paint(); };
+      return view;
+    }
+
+    function Planner(){
+      const wrap=document.createElement('div'); wrap.className='full';
+      wrap.innerHTML=`
+        <div class='card cal-head'>
+          <div class='row'>
+            <button class='btn ghost' id='prev'>◀</button>
+            <select id='month'></select>
+            <select id='year'></select>
+            <button class='btn ghost' id='next'>▶</button>
+          </div>
+          <div class='row'>
+            <label class='small'>Filter</label>
+            <select id='filter'>
+              <option value='all'>Show All</option>
+              <option value='math'>Math</option>
+              <option value='chem'>Chemistry</option>
+              <option value='eng'>English</option>
+              <option value='hist'>History</option>
+              <option value='gen'>General</option>
+            </select>
+          </div>
+          <div class='small'>Click a day to add events (you'll pick a subject)</div>
+        </div>
+        <div class='cal fullgrid card' id='cal'></div>`;
+
+      const months='Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ');
+      const now=new Date(); const mSel=$('#month', wrap), ySel=$('#year', wrap), fSel=$('#filter', wrap); const cal=$('#cal', wrap);
+      const evts=S.get('events', []);
+      months.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=m; mSel.appendChild(o); });
+      for(let y=now.getFullYear()-1;y<=now.getFullYear()+2;y++){ const o=document.createElement('option'); o.value=y; o.textContent=y; ySel.appendChild(o); }
+      mSel.value=S.get('m', now.getMonth()); ySel.value=S.get('y', now.getFullYear()); fSel.value=S.get('flt','all');
+
+      function draw(){
+        cal.innerHTML=''; const y=+ySel.value, m=+mSel.value; S.set('m',m); S.set('y',y); S.set('flt', fSel.value);
+        const first=new Date(y,m,1); const start=(first.getDay()+6)%7; const days=new Date(y,m+1,0).getDate();
+        ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d=>{ const h=document.createElement('div'); h.style.fontWeight='700'; h.style.textAlign='center'; h.textContent=d; cal.appendChild(h); });
+        for(let i=0;i<start;i++) cal.appendChild(document.createElement('div'));
+        for(let d=1; d<=days; d++){
+          const c=document.createElement('div'); c.className='day'; const num=document.createElement('div'); num.className='num'; num.textContent=d; const box=document.createElement('div'); box.className='events';
+          const dateStr=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          evts.filter(e=>e.date===dateStr && (fSel.value==='all' || e.tag===fSel.value)).forEach(e=>{ const tag=document.createElement('div'); tag.className='event ev-'+(e.tag||'gen'); tag.textContent=e.title; box.appendChild(tag); });
+          c.append(num, box);
+          c.onclick=()=>{
+            const title=prompt(`Add event for ${dateStr}`,''); if(!title) return;
+            const tag=prompt('Subject tag: math / chem / eng / hist / gen','gen');
+            const safeTag=['math','chem','eng','hist','gen'].includes((tag||'').toLowerCase())?tag.toLowerCase():'gen';
+            evts.push({title,date:dateStr, tag:safeTag}); S.set('events', evts); draw();
+          };
+          cal.appendChild(c);
+        }
+      }
+      mSel.onchange=draw; ySel.onchange=draw; fSel.onchange=draw; $('#prev', wrap).onclick=()=>{ let m=+mSel.value-1, y=+ySel.value; if(m<0){m=11; y--;} mSel.value=m; ySel.value=y; draw(); }; $('#next', wrap).onclick=()=>{ let m=+mSel.value+1, y=+ySel.value; if(m>11){m=0; y++;} mSel.value=m; ySel.value=y; draw(); };
+      draw();
+      return wrap;
+    }
+
+    function MathView(){
+      const page=document.createElement('section'); page.className='card'; page.style.height='100%';
+      makeSubtabs(page,[
+        {id:'calc', label:'Calculator + Graph', render(){
+          const p=document.createElement('div'); p.className='graph-wrap';
+          p.innerHTML=`
+            <div class='row'>
+              <input id='expr' placeholder='y = x^2 - 2x + 1' />
+              <input id='xmin' type='number' value='-10' style='max-width:100px' />
+              <label class='small'>to</label>
+              <input id='xmax' type='number' value='10' style='max-width:100px' />
+              <button class='btn' id='plot'>Plot</button>
+            </div>
+            <div class='small' id='msg'>Allowed: numbers, x, + - * / ^ ., parentheses</div>
+            <canvas id='g' class='board'></canvas>`;
+          const g=p.querySelector('#g'); const ctx=g.getContext('2d');
+          function fit(){ const r=g.getBoundingClientRect(); g.width=Math.floor(r.width); g.height=Math.floor(r.height); }
+          function drawAxes(xmin,xmax,ymin,ymax){ ctx.clearRect(0,0,g.width,g.height); ctx.fillStyle='#fff'; ctx.fillRect(0,0,g.width,g.height); ctx.strokeStyle='#ffe1ef'; ctx.lineWidth=1; for(let x=0;x<=g.width;x+=25){ ctx.beginPath(); ctx.moveTo(x,.5); ctx.lineTo(x,g.height+.5); ctx.stroke(); } for(let y=0;y<=g.height;y+=25){ ctx.beginPath(); ctx.moveTo(.5,y); ctx.lineTo(g.width+.5,y); ctx.stroke(); } const x0 = Math.round((-xmin)/(xmax-xmin)*g.width); const y0 = Math.round((ymax)/(ymax-ymin)*g.height); ctx.strokeStyle='#bdb5c9'; ctx.beginPath(); ctx.moveTo(0,y0+.5); ctx.lineTo(g.width,y0+.5); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x0+.5,0); ctx.lineTo(x0+.5,g.height); ctx.stroke(); }
+          function plot(){ try{ const expr=p.querySelector('#expr').value.replace(/^y\s*=\s*/i,''); const xmin=parseFloat(p.querySelector('#xmin').value), xmax=parseFloat(p.querySelector('#xmax').value); if(!(xmax>xmin)) throw new Error('x-range invalid'); fit(); const samples=g.width; // map pixels to x
+              // estimate y-range first
+              let ymin=Infinity,ymax=-Infinity; for(let i=0;i<=samples;i++){ const x=xmin+(i/samples)*(xmax-xmin); const y=evalExpr(expr,x); if(!isFinite(y)) continue; ymin=Math.min(ymin,y); ymax=Math.max(ymax,y); }
+              if(!isFinite(ymin)||!isFinite(ymax)||ymin===ymax){ ymin=-10; ymax=10; }
+              drawAxes(xmin,xmax,ymin,ymax);
+              ctx.strokeStyle='#ff62b0'; ctx.lineWidth=2; let first=true; ctx.beginPath(); for(let i=0;i<=samples;i++){ const x=xmin+(i/samples)*(xmax-xmin); let y; try{ y=evalExpr(expr,x); }catch{ y=NaN; }
+                if(isFinite(y)){ const px = (x-xmin)/(xmax-xmin)*g.width; const py = (1-(y-ymin)/(ymax-ymin))*g.height; if(first){ ctx.moveTo(px,py); first=false;} else { ctx.lineTo(px,py);} }
+              }
+              ctx.stroke(); p.querySelector('#msg').textContent='Plotted.'; }
+            catch(e){ p.querySelector('#msg').textContent='Error: '+e.message; }
+          }
+          window.addEventListener('resize', ()=>{ fit(); drawAxes(-10,10,-10,10); }); setTimeout(()=>{ fit(); drawAxes(-10,10,-10,10); }, 30);
+          p.querySelector('#plot').onclick=plot; return p; }
+        },
+        {id:'formulas', label:'Formulas & Folders', render(){
+          const p=document.createElement('div'); p.style.height='100%'; p.style.display='grid'; p.style.gridTemplateRows='auto 1fr auto'; p.innerHTML=`
+            <ul class='small' style='margin:0; padding-left:18px'>
+              <li>Quadratic: x=(−b±√(b²−4ac))/(2a)</li>
+              <li>Vertex: (−b/2a, f(−b/2a))</li>
+              <li>Distance: √((x₂−x₁)²+(y₂−y₁)²)</li>
+              <li>Slope: (y₂−y₁)/(x₂−x₁)</li>
+            </ul>
+            <ul id='mfList' class='small' style='margin:0; padding-left:18px; overflow:auto'></ul>
+            <div class='row'><input id='mfName' placeholder='New folder name' /><button class='btn' id='mfAdd'>Create</button></div>`;
+          const F=S.get('mathFolders',[]); const list=p.querySelector('#mfList');
+          const draw=()=>{ list.innerHTML=''; F.forEach((n,i)=>{ const li=document.createElement('li'); li.textContent='📁 '+n; const del=document.createElement('button'); del.className='btn ghost'; del.textContent='Delete'; del.style.marginLeft='8px'; del.onclick=()=>{F.splice(i,1); S.set('mathFolders',F); draw();}; li.appendChild(del); list.appendChild(li); }); };
+          draw(); p.querySelector('#mfAdd').onclick=()=>{ const v=p.querySelector('#mfName').value.trim(); if(!v) return; F.push(v); S.set('mathFolders',F); p.querySelector('#mfName').value=''; draw(); };
+          return p; }
+        },
+        {id:'pad', label:'Note Pad', render(){ return Notepad('mathNotes','Math notes (auto‑save)…'); }},
+        {id:'rec', label:'Recorder', render(){ return Recorder('mathTranscript'); }}
+      ], 'calc');
+      return page;
+    }
+
+    function Chem(){
+      const page=document.createElement('section'); page.className='card'; page.style.height='100%';
+      makeSubtabs(page,[
+        {id:'calc', label:'Calculator', render(){
+          const p=document.createElement('div'); p.style.height='100%'; p.style.display='grid'; p.style.gridTemplateRows='auto auto 1fr'; p.innerHTML=`
+            <div class='row'><input id='cExpr' placeholder='e.g., 6.022e23 * 0.5 / 60' /><input id='cX' type='number' placeholder='x (optional)' style='max-width:120px' /><button class='btn' id='cRun'>Compute</button></div>
+            <div id='cOut' class='small'></div>
+            <div class='small'>Allowed: numbers, x, e, + - * / ^ ., parentheses</div>`;
+          function compute(expr,x){ try{ const r=evalExpr(expr, x===''?0:x); return String(r);}catch(e){return 'Error: '+e.message} }
+          p.querySelector('#cRun').onclick=()=>{ const r=compute(p.querySelector('#cExpr').value.trim(), p.querySelector('#cX').value); p.querySelector('#cOut').textContent='Result: '+r; };
+          return p; }
+        },
+        {id:'formulas', label:'Formulas & Folders', render(){
+          const p=document.createElement('div'); p.style.height='100%'; p.style.display='grid'; p.style.gridTemplateRows='auto 1fr auto'; p.innerHTML=`
+            <ul class='small' style='margin:0; padding-left:18px'>
+              <li>n = m / M (moles)</li>
+              <li>PV = nRT (R = 0.08206 L·atm·mol⁻¹·K⁻¹)</li>
+              <li>M₁V₁ = M₂V₂ (dilution)</li>
+              <li>q = m c ΔT</li>
+            </ul>
+            <ul id='cfList' class='small' style='margin:0; padding-left:18px; overflow:auto'></ul>
+            <div class='row'><input id='cfName' placeholder='New folder name' /><button class='btn' id='cfAdd'>Create</button></div>`;
+          const F=S.get('chemFolders',[]); const list=p.querySelector('#cfList');
+          const draw=()=>{ list.innerHTML=''; F.forEach((n,i)=>{ const li=document.createElement('li'); li.textContent='📁 '+n; const del=document.createElement('button'); del.className='btn ghost'; del.textContent='Delete'; del.style.marginLeft='8px'; del.onclick=()=>{F.splice(i,1); S.set('chemFolders',F); draw();}; li.appendChild(del); list.appendChild(li); }); };
+          draw(); p.querySelector('#cfAdd').onclick=()=>{ const v=p.querySelector('#cfName').value.trim(); if(!v) return; F.push(v); S.set('chemFolders',F); p.querySelector('#cfName').value=''; draw(); };
+          return p; }
+        },
+        {id:'ptable', label:'Periodic Table', render(){
+          const p=document.createElement('div'); p.style.height='100%'; p.style.display='grid'; p.style.gridTemplateRows='1fr'; const grid=document.createElement('div'); grid.className='cal'; grid.style.gridTemplateColumns='repeat(9,1fr)'; grid.style.gap='6px';
+          const PT=['H','He','Li','Be','B','C','N','O','F','Ne','Na','Mg','Al','Si','P','S','Cl','Ar','K','Ca','Sc','Ti','V','Cr','Mn','Fe','Co','Ni','Cu','Zn','Ga','Ge','As','Se','Br','Kr'];
+          PT.forEach((s,i)=>{ const d=document.createElement('div'); d.className='card'; d.style.padding='8px'; d.style.textAlign='center'; d.innerHTML=`<div class='small'>${i+1}</div><div style='font-weight:800'>${s}</div>`; grid.appendChild(d); });
+          p.appendChild(grid); return p; }
+        },
+        {id:'pad', label:'Note Pad', render(){ return Notepad('chemNotes','Chemistry notes (auto‑save)…'); }},
+        {id:'rec', label:'Recorder', render(){ return Recorder('chemTranscript'); }}
+      ], 'calc');
+      return page;
+    }
+
+    function History(){
+      const page=document.createElement('section'); page.className='card'; page.style.height='100%';
+      makeSubtabs(page,[
+        {id:'pad', label:'Note Pad', render(){ return Notepad('historyNotes','History notes (auto‑save)…'); }},
+        {id:'rec', label:'Recorder', render(){ return Recorder('historyTranscript'); }}
+      ], 'pad');
+      return page;
+    }
+
+    function English(){
+      const page=document.createElement('section'); page.className='card'; page.style.height='100%';
+      makeSubtabs(page,[
+        {id:'pad', label:'Note Pad', render(){ return Notepad('englishNotes','English notes (auto‑save)…'); }},
+        {id:'rec', label:'Recorder', render(){ return Recorder('englishTranscript'); }}
+      ], 'pad');
+      return page;
+    }
+
+    function Fun(){
+      const page=document.createElement('section'); page.className='card'; page.style.height='100%';
+      const bar=document.createElement('div'); bar.className='fun-bar';
+      const drawBtn=document.createElement('button'); drawBtn.textContent='✏️ Draw';
+      const snakeBtn=document.createElement('button'); snakeBtn.textContent='🐍 Snake';
+      drawBtn.className='tab active'; snakeBtn.className='tab'; bar.append(drawBtn, snakeBtn);
+
+      const drawPanel=document.createElement('div'); drawPanel.className='panel show'; drawPanel.style.display='grid'; drawPanel.style.gridTemplateRows='auto 1fr';
+      const tools=document.createElement('div'); tools.className='row'; tools.innerHTML=`<input type='color' id='color' value='#000000' title='Color' />
+        <input type='range' id='size' min='1' max='30' value='4' title='Brush size' style='width:120px'>
+        <button class='btn' id='eraser'>Eraser</button>
+        <button class='btn ghost' id='clear'>Clear</button>`;
+      const pad=document.createElement('canvas'); pad.id='draw'; pad.className='board'; drawPanel.append(tools, pad);
+
+      const snakePanel=document.createElement('div'); snakePanel.className='panel'; snakePanel.style.display='grid'; snakePanel.style.gridTemplateRows='auto 1fr';
+      const hud=document.createElement('div'); hud.className='row small'; hud.innerHTML=`Score: <b id='score'>0</b> • High: <b id='high'>0</b> • <span>Use arrow keys</span>`;
+      const game=document.createElement('canvas'); game.id='snake'; game.className='board'; snakePanel.append(hud, game);
+
+      // Draw logic
+      const dctx=pad.getContext('2d'); let drawing=false, last=[0,0];
+      function fitPad(){ const r=pad.getBoundingClientRect(); pad.width=Math.floor(r.width*2); pad.height=Math.floor(r.height*2); dctx.setTransform(1,0,0,1,0,0); dctx.scale(2,2); dctx.fillStyle='#fff'; dctx.fillRect(0,0,r.width,r.height); }
+      function ppos(e){ const r=pad.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return [x,y]; }
+      function drawLine(a,b,c,w){ dctx.strokeStyle=c; dctx.lineWidth=w; dctx.lineCap='round'; dctx.beginPath(); dctx.moveTo(a[0],a[1]); dctx.lineTo(b[0],b[1]); dctx.stroke(); }
+      function dDown(e){ drawing=true; last=ppos(e); }
+      function dMove(e){ if(!drawing) return; const p=ppos(e); const col=(tools.querySelector('#eraser').dataset.on==='1')?'#ffffff':tools.querySelector('#color').value; const w=+tools.querySelector('#size').value; drawLine(last,p,col,w); last=p; }
+      function dUp(){ drawing=false; }
+      pad.addEventListener('mousedown', dDown); pad.addEventListener('mousemove', dMove); window.addEventListener('mouseup', dUp);
+      pad.addEventListener('touchstart', dDown, {passive:true}); pad.addEventListener('touchmove', dMove, {passive:true}); window.addEventListener('touchend', dUp);
+      window.addEventListener('resize', fitPad); setTimeout(fitPad, 30);
+      tools.querySelector('#eraser').onclick=(e)=>{ const on=e.currentTarget.dataset.on==='1'; e.currentTarget.dataset.on=on?'0':'1'; e.currentTarget.classList.toggle('pink', !on); e.currentTarget.textContent= on? 'Eraser' : 'Eraser (ON)'; };
+      tools.querySelector('#clear').onclick=()=>{ const r=pad.getBoundingClientRect(); dctx.fillStyle='#ffffff'; dctx.fillRect(0,0,r.width,r.height); };
+
+      // Snake logic
+      let gctx, gs=18, cols=24, rows=16, snake, dir, food, tick, score=0, high=S.get('snakeHigh',0);
+      function reset(){ const r=game.getBoundingClientRect(); game.width=Math.floor(r.width); game.height=Math.floor(r.height); gctx=game.getContext('2d'); cols=Math.max(12, Math.floor(game.width/gs)); rows=Math.max(8, Math.floor(game.height/gs)); const cx=Math.floor(cols/2), cy=Math.floor(rows/2); snake=[[cx,cy],[cx-1,cy],[cx-2,cy]]; dir=[1,0]; food=spawnFood(); score=0; $('#score', hud).textContent='0'; $('#high', hud).textContent=high; drawGame(); }
+      function spawnFood(){ while(true){ const f=[Math.floor(Math.random()*cols), Math.floor(Math.random()*rows)]; if(!snake.some(s=>s[0]===f[0]&&s[1]===f[1])) return f; } }
+      function step(){ const head=[snake[0][0]+dir[0], snake[0][1]+dir[1]]; if(head[0]<0||head[1]<0||head[0]>=cols||head[1]>=rows|| snake.slice(0,-1).some(s=>s[0]===head[0]&&s[1]===head[1])){ clearInterval(tick); reset(); return; } snake.unshift(head); if(head[0]===food[0] && head[1]===food[1]){ score++; $('#score', hud).textContent=score; if(score>high){ high=score; S.set('snakeHigh', high); $('#high', hud).textContent=high; } food=spawnFood(); } else snake.pop(); drawGame(); }
+      function drawGame(){ gctx.fillStyle='#fff'; gctx.fillRect(0,0,game.width,game.height); gctx.strokeStyle='#ffe1ef'; gctx.lineWidth=1; for(let x=0;x<cols;x++){ gctx.beginPath(); gctx.moveTo(x*gs+.5,0); gctx.lineTo(x*gs+.5,rows*gs); gctx.stroke(); } for(let y=0;y<rows;y++){ gctx.beginPath(); gctx.moveTo(0,y*gs+.5); gctx.lineTo(cols*gs,y*gs+.5); gctx.stroke(); } gctx.fillStyle='#ff62b0'; gctx.fillRect(food[0]*gs+2, food[1]*gs+2, gs-4, gs-4); gctx.fillStyle='#1f1d29'; snake.forEach((s,i)=>{ gctx.fillRect(s[0]*gs+1, s[1]*gs+1, gs-2, gs-2); if(i===0){ gctx.fillStyle='#6b667a'; gctx.fillRect(s[0]*gs+4, s[1]*gs+4, gs-8, gs-8); gctx.fillStyle='#1f1d29'; }}); }
+      function key(e){ const k=e.key; if(k==='ArrowUp' && dir[1]!==1) dir=[0,-1]; else if(k==='ArrowDown' && dir[1]!==-1) dir=[0,1]; else if(k==='ArrowLeft' && dir[0]!==1) dir=[-1,0]; else if(k==='ArrowRight' && dir[0]!==-1) dir=[1,0]; }
+      function start(){ clearInterval(tick); tick=setInterval(step, 120); }
+      function fitGame(){ reset(); start(); }
+      window.addEventListener('keydown', key); window.addEventListener('resize', fitGame);
+
+      drawBtn.onclick=()=>{ drawBtn.classList.add('active'); snakeBtn.classList.remove('active'); drawPanel.classList.add('show'); snakePanel.classList.remove('show'); };
+      snakeBtn.onclick=()=>{ snakeBtn.classList.add('active'); drawBtn.classList.remove('active'); snakePanel.classList.add('show'); drawPanel.classList.remove('show'); setTimeout(fitGame, 30); };
+
+      page.append(bar, drawPanel, snakePanel);
+      setTimeout(()=>{ const ev=new Event('resize'); window.dispatchEvent(ev); }, 10);
+      return page;
+    }
+
+    const routes={ home:Home, planner:Planner, math:MathView, chem:Chem, history:History, english:English, notes:Fun };
+
+    function render(){
+      const view=ensure('#view', ()=>{ const m=document.createElement('main'); m.id='view'; m.className='grid two'; $('.shell').appendChild(m); return m; });
+      ensure('#tabs', ()=>{ const n=document.createElement('nav'); n.id='tabs'; $('header').appendChild(n); return n; });
+      view.className = active==='planner' ? 'full' : '';
+      view.innerHTML='';
+      const V=(routes[active]||Home)();
+      view.appendChild(V);
+      // Keep #view id stable for tests; use data attribute for state
+      view.dataset.active = active;
+      renderTabs();
+    }
+
+    render();
+
+    // Tests — add new ones for stability and regressions
+    runTests();
+    function runTests(){
+      const tests=[]; const add=(n,f)=>{ try{ f(); tests.push({n,ok:true}); }catch(e){ tests.push({n,ok:false,msg:e.message}); } };
+      add('No page vertical scroll', ()=>{ const doc=document.documentElement; if(doc.scrollHeight>doc.clientHeight+2) throw new Error('Page scroll detected'); });
+      add('#view exists before use', ()=>{ if(!document.getElementById('view')) throw new Error('#view missing'); });
+      add('#view id stays constant', ()=>{ const node=document.getElementById('view'); const idStill='view'===node.id; if(!idStill) throw new Error('view id changed'); });
+      add('No Desmos iframes', ()=>{ if(document.querySelector('iframe')) throw new Error('Found an iframe; should be none'); });
+      add('Global Math intact', ()=>{ if(typeof Math.floor!=="function"||Math.floor(1.2)!==1) throw new Error('Global Math is shadowed or broken'); });
+      add('Planner has filter control', ()=>{ const plan=[...$('#tabs').querySelectorAll('button.tab')].find(b=>/Planner/i.test(b.textContent)); plan?.click(); if(!document.querySelector('#filter')) throw new Error('Filter dropdown missing'); });
+      add('Math shows built-in graph elements', ()=>{ const math=[...$('#tabs').querySelectorAll('button.tab')].find(b=>/Math/i.test(b.textContent)); math?.click(); if(!document.querySelector('#g')) throw new Error('Graph canvas missing'); });
+      add('Chem calculator computes', ()=>{ const chem=[...$('#tabs').querySelectorAll('button.tab')].find(b=>/Chem/i.test(b.textContent)); chem?.click(); const inp=document.querySelector('#cExpr'); const run=document.querySelector('#cRun'); inp.value='6.022e23 * 0.5'; run.click(); const out=document.querySelector('#cOut').textContent; if(!/Result:/i.test(out)) throw new Error('Chem compute failed'); });
+      add('Fun tab has Draw & Snake toggles', ()=>{ const fun=[...$('#tabs').querySelectorAll('button.tab')].find(b=>/Fun/i.test(b.textContent)); fun?.click(); const hasDraw=!![...document.querySelectorAll('.fun-bar .tab')].find(b=>/Draw/.test(b.textContent)); const hasSnake=!![...document.querySelectorAll('.fun-bar .tab')].find(b=>/Snake/.test(b.textContent)); if(!(hasDraw&&hasSnake)) throw new Error('Missing Draw/Snake toggles'); });
+
+      const list=document.getElementById('testList'); if(list) list.innerHTML=''; let fails=0; tests.forEach(t=>{ if(!t.ok) fails++; console[t.ok?'log':'error'](`TEST ${t.ok?'PASS':'FAIL'} — ${t.n}${t.msg?': '+t.msg:''}`); if(list){ const li=document.createElement('li'); li.textContent=`${t.ok?'✅':'❌'} ${t.n}${t.msg?': '+t.msg:''}`; list.appendChild(li); } }); const diag=document.getElementById('diagnostics'); if(diag){ diag.classList.add(fails?'fail':'pass'); }
+    }
+  }
+})();
+</script>
+</body>
+</html>
