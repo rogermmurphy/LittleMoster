@@ -11,6 +11,8 @@ import compression from 'compression';
 import morgan from 'morgan';
 import authRoutes from '../api/routes/auth.routes';
 import classesRoutes from '../api/routes/classes.routes';
+import audioRoutes from '../api/routes/audio.routes';
+import photoRoutes from '../api/routes/photo.routes';
 
 const app: Express = express();
 const PORT = process.env['PORT'] || 3000;
@@ -40,6 +42,8 @@ app.get('/health', (req: Request, res: Response) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/classes', classesRoutes);
+app.use('/api/audio', audioRoutes);
+app.use('/api/photos', photoRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -80,6 +84,18 @@ app.listen(PORT, () => {
   console.log(`   GET    /api/classes/:id`);
   console.log(`   PATCH  /api/classes/:id`);
   console.log(`   DELETE /api/classes/:id`);
+  console.log('   Audio:');
+  console.log(`   POST   /api/audio/upload`);
+  console.log(`   GET    /api/audio?classId=xxx`);
+  console.log(`   GET    /api/audio/:id`);
+  console.log(`   PATCH  /api/audio/:id`);
+  console.log(`   DELETE /api/audio/:id`);
+  console.log('   Photos:');
+  console.log(`   POST   /api/photos/upload`);
+  console.log(`   GET    /api/photos?classId=xxx`);
+  console.log(`   GET    /api/photos/:id`);
+  console.log(`   PATCH  /api/photos/:id`);
+  console.log(`   DELETE /api/photos/:id`);
   console.log('\n✅ Server ready to accept connections\n');
 });
 
