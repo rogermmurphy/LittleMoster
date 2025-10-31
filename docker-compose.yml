@@ -73,6 +73,7 @@ services:
       - lm-network
 
   # Ollama - Local LLM inference (GPT-OSS)
+  # Running in CPU mode (remove deploy section to enable GPU if available)
   ollama:
     image: ollama/ollama:latest
     container_name: lm-ollama
@@ -83,13 +84,14 @@ services:
     restart: unless-stopped
     networks:
       - lm-network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+    # Uncomment below if you have NVIDIA GPU with drivers installed:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
 
 volumes:
   redis-data:
