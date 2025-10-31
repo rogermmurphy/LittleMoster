@@ -44,11 +44,43 @@ services:
     environment:
       ADMINER_DEFAULT_SERVER: postgres
 
+  # Qdrant - Open-source vector database for RAG (Production)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: lm-qdrant
+    ports:
+      - "6333:6333"  # REST API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant-data:/qdrant/storage
+    restart: unless-stopped
+    networks:
+      - lm-network
+
+  # ChromaDB - Vector database for dev/debugging with MCP
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: lm-chroma
+    ports:
+      - "8000:8000"  # HTTP API
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    restart: unless-stopped
+    networks:
+      - lm-network
+
 volumes:
   redis-data:
     name: lm-redis-data
   postgres-data:
     name: lm-postgres-data
+  qdrant-data:
+    name: lm-qdrant-data
+  chroma-data:
+    name: lm-chroma-data
 
 networks:
   lm-network:

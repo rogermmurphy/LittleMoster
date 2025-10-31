@@ -172,11 +172,25 @@ API Routes
 │   ├── POST /ratings
 │   ├── GET /ratings?videoId=:id
 │   └── GET /ratings/user/:userId/video/:videoId
-└── /planner
-    ├── GET /planner/events
-    ├── POST /planner/events
-    ├── PATCH /planner/events/:id
-    └── DELETE /planner/events/:id
+├── /planner
+│   ├── GET /planner/events
+│   ├── POST /planner/events
+│   ├── PATCH /planner/events/:id
+│   └── DELETE /planner/events/:id
+├── /chat
+│   ├── POST /chat/conversations (start new conversation)
+│   ├── GET /chat/conversations (list user's conversations)
+│   ├── GET /chat/conversations/:id (get conversation with messages)
+│   ├── POST /chat/conversations/:id/messages (send message, streaming)
+│   ├── DELETE /chat/conversations/:id (delete conversation)
+│   └── PATCH /chat/conversations/:id (update conversation title)
+└── /documents
+    ├── POST /documents/upload (upload study material)
+    ├── GET /documents (list user's documents)
+    ├── GET /documents/:id (get document details)
+    ├── DELETE /documents/:id (delete document + embeddings)
+    ├── POST /documents/search (semantic search across documents)
+    └── GET /documents/:id/chunks (get document chunks)
 ```
 
 ### 2.3 Database Architecture
@@ -248,11 +262,58 @@ planner_events
 ├── is_completed (BOOLEAN)
 ├── created_at (TIMESTAMP)
 └── updated_at (TIMESTAMP)
+
+chat_conversations
+├── id (UUID, PK)
+├── user_id (UUID, FK → users.id)
+├── title (VARCHAR)
+├── context_type (ENUM: 'general', 'video', 'document', 'research')
+├── metadata (JSONB)
+├── message_count (INTEGER)
+├── last_message_at (TIMESTAMP)
+├── created_at (TIMESTAMP)
+└── updated_at (TIMESTAMP)
+
+chat_messages
+├── id (UUID, PK)
+├── conversation_id (UUID, FK → chat_conversations.id)
+├── role (ENUM: 'user', 'assistant', 'system')
+├── content (TEXT)
+├── token_count (INTEGER)
+├── sources (JSONB[])
+├── function_calls (JSONB)
+├── created_at (TIMESTAMP)
+└── updated_at (TIMESTAMP)
+
+user_documents
+├── id (UUID, PK)
+├── user_id (UUID, FK → users.id)
+├── title (VARCHAR)
+├── file_type (ENUM: 'pdf', 'docx', 'txt', 'markdown')
+├── subject (ENUM)
+├── file_url (VARCHAR)
+├── file_size (INTEGER)
+├── page_count (INTEGER)
+├── chunk_count (INTEGER)
+├── embedding_status (ENUM: 'pending', 'processing', 'completed', 'failed')
+├── metadata (JSONB)
+├── created_at (TIMESTAMP)
+└── updated_at (TIMESTAMP)
+
+document_chunks
+├── id (UUID, PK)
+├── document_id (UUID, FK → user_documents.id)
+├── chunk_index (INTEGER)
+├── content (TEXT)
+├── token_count (INTEGER)
+├── embedding_id (VARCHAR)
+├── metadata (JSONB)
+└── created_at (TIMESTAMP)
 ```
 
 **Database Indexes:**
 ```sql
--- Performance-critical indexes
+-- Performance-critical indexes (Original tables)
 CREATE INDEX idx_videos_subject_created ON videos(subject, created_at DESC);
 CREATE INDEX idx_videos_status_created ON videos(status, created_at DESC);
 CREATE INDEX idx_videos_created_by ON videos(created_by);
@@ -261,50 +322,126 @@ CREATE INDEX idx_comments_video_id ON comments(video_id, created_at DESC);
 CREATE INDEX idx_ratings_video_user ON ratings(video_id, user_id);
 CREATE INDEX idx_planner_user_date ON planner_events(user_id, start_date);
 CREATE INDEX idx_videos_search ON videos USING GIN(to_tsvector('english', title || ' ' || topic));
+
+-- Chat & Document indexes (New tables)
+CREATE INDEX idx_chat_conversations_user ON chat_conversations(user_id, last_message_at DESC);
+CREATE INDEX idx_chat_messages_conversation ON chat_messages(conversation_id, created_at DESC);
+CREATE INDEX idx_user_documents_user ON user_documents(user_id, created_at DESC);
+CREATE INDEX idx_user_documents_status ON user_documents(embedding_status, created_at DESC);
+CREATE INDEX idx_document_chunks_document ON document_chunks(document_id, chunk_index);
+CREATE INDEX idx_documents_search ON user_documents USING GIN(to_tsvector('english', title));
 ```
 
-### 2.4 AI Infrastructure Architecture
+### 2.4 AI Infrastructure Architecture (GPT-OSS + RAG)
 
-**Self-Hosted LLM Setup:**
+**Conversational AI with GPT-OSS:**
 ```
 AI Infrastructure
-├── Model Manager
-│   ├── Model loading and unloading
-│   ├── Resource allocation
-│   └── Health monitoring
-├── Inference Engine
-│   ├── GPU acceleration (CUDA)
-│   ├── Batch processing
-│   └── Request queuing
-├── Prompt Engineering
-│   ├── Template management
-│   ├── Context injection
-│   └── Output formatting
+├── GPT-OSS Integration
+│   ├── OpenAI API client
+│   ├── Streaming response handling
+│   ├── Function calling support
+│   └── Context window management (128K tokens)
+├── RAG Pipeline
+│   ├── Document ingestion & chunking
+│   ├── Embedding generation (text-embedding-3)
+│   ├── Vector search (semantic similarity)
+│   └── Context retrieval & ranking
+├── Vector Database
+│   ├── Pinecone/Weaviate integration
+│   ├── Index management per user
+│   ├── Metadata filtering
+│   └── Similarity search optimization
+├── Chat Management
+│   ├── Conversation history tracking
+│   ├── Multi-turn dialogue support
+│   ├── Context pruning (token limits)
+│   └── Session management
+├── Research Integration
+│   ├── Web search (Tavily/Serp API)
+│   ├── Academic database access
+│   ├── Source citation & verification
+│   └── Fact-checking pipeline
 └── Monitoring
     ├── Token usage tracking
-    ├── Response time metrics
-    └── Quality assessment
+    ├── Response quality metrics
+    ├── Cost monitoring per user
+    └── Latency tracking
 ```
 
-**AI Service Flow:**
+**Conversational AI Flow:**
 ```
-User Request
+User Query
     ↓
-Content Moderation (Safety Check)
+[Intent Classification]
+    ├─ Video Generation Request
+    ├─ Question about Study Material
+    ├─ General Study Help
+    └─ External Research Query
     ↓
-Prompt Template Selection
+[RAG Pipeline - if relevant]
+    ├─ Semantic search user's documents
+    ├─ Retrieve top-k relevant chunks
+    ├─ Rank by relevance score
+    └─ Format as context
     ↓
-Context Enrichment (Subject, Difficulty)
+[Research Pipeline - if needed]
+    ├─ Web search for current info
+    ├─ Academic paper search
+    └─ Extract relevant passages
     ↓
-LLM Inference (Llama2/Mistral)
+[Context Assembly]
+    ├─ Conversation history (last N turns)
+    ├─ Retrieved document context
+    ├─ External research results
+    ├─ User profile & preferences
+    └─ System instructions
     ↓
-Response Post-Processing
+[GPT-OSS Inference]
+    ├─ Streaming response generation
+    ├─ Function calling (if needed)
+    └─ Citation insertion
     ↓
-Quality Validation
+[Response Post-Processing]
+    ├─ Markdown formatting
+    ├─ Source attribution
+    ├─ Link validation
+    └─ Safety check
     ↓
-Store Generated Content
+[Store & Return]
+    ├─ Save to conversation history
+    ├─ Update usage metrics
+    └─ Stream to client
+```
+
+**RAG Document Processing Flow:**
+```
+User Uploads Document
     ↓
-Return to User
+[Document Parsing]
+    ├─ Extract text from PDF/DOCX/TXT
+    ├─ Identify structure (headings, sections)
+    └─ Extract metadata (title, author, date)
+    ↓
+[Text Chunking]
+    ├─ Split into semantic chunks (512 tokens)
+    ├─ Preserve paragraph boundaries
+    ├─ Add overlap between chunks (50 tokens)
+    └─ Maintain document hierarchy
+    ↓
+[Embedding Generation]
+    ├─ Generate embeddings via OpenAI API
+    ├─ Use text-embedding-3-large model
+    └─ Store 3072-dimensional vectors
+    ↓
+[Vector Database Storage]
+    ├─ Store embeddings in Pinecone/Weaviate
+    ├─ Index by user_id + document_id
+    ├─ Add metadata filters (subject, type, date)
+    └─ Enable hybrid search (vector + keyword)
+    ↓
+[Ready for Retrieval]
+    └─ User can query their knowledge base
 ```
 
 ## 3. Data Flow Architecture
@@ -457,6 +594,34 @@ CREATE POLICY "Users can rate videos"
 CREATE POLICY "Users can access own events"
   ON planner_events
   USING (auth.uid() = user_id);
+
+-- Chat conversations private to user
+CREATE POLICY "Users can access own conversations"
+  ON chat_conversations
+  USING (auth.uid() = user_id);
+
+-- Chat messages visible if user owns conversation
+CREATE POLICY "Users can access messages in own conversations"
+  ON chat_messages FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM chat_conversations
+    WHERE chat_conversations.id = chat_messages.conversation_id
+    AND chat_conversations.user_id = auth.uid()
+  ));
+
+-- User documents private to owner
+CREATE POLICY "Users can access own documents"
+  ON user_documents
+  USING (auth.uid() = user_id);
+
+-- Document chunks visible if user owns document
+CREATE POLICY "Users can access chunks from own documents"
+  ON document_chunks FOR SELECT
+  USING (EXISTS (
+    SELECT 1 FROM user_documents
+    WHERE user_documents.id = document_chunks.document_id
+    AND user_documents.user_id = auth.uid()
+  ));
 ```
 
 ## 5. Scalability Architecture
@@ -711,11 +876,14 @@ Backup Schedule
 - Supabase Storage for files
 
 **AI Technologies:**
-- Llama 2 (7B/13B models)
-- Mistral 7B
-- PyTorch for inference
-- LangChain for orchestration
-- sentence-transformers for embeddings
+- GPT-OSS (OpenAI) - Primary conversational AI
+- OpenAI text-embedding-3-large - Document embeddings
+- **Qdrant** - Open-source vector database for RAG (primary choice)
+- Weaviate - Alternative open-source vector DB
+- LangChain - RAG orchestration
+- Llama 2 / Mistral - Backup/alternative models
+- Tavily / Serp API - Web search integration
+- PDF.js / Mammoth.js - Document parsing
 
 **DevOps Technologies:**
 - Docker & Docker Compose
@@ -746,9 +914,20 @@ Backup Schedule
 - Impact: Multiple endpoints vs single endpoint
 - Trade-off: Over-fetching vs complexity
 
+**ADR-005: GPT-OSS with RAG over Self-Hosted LLM Only**
+- Date: October 30, 2025
+- Reason: GPT-OSS provides superior conversational AI capabilities with 128K context window, function calling, and streaming. RAG architecture enables grounding responses in user's personal study materials and external research sources, creating a more powerful and contextually relevant learning assistant.
+- Impact: 
+  - Requires OpenAI API integration (cost per token)
+  - Need vector database (Pinecone/Weaviate) for embeddings
+  - Additional database tables for chat conversations and documents
+  - More complex AI pipeline (document parsing, chunking, embedding, retrieval)
+- Trade-off: Higher API costs vs significantly better user experience and AI capabilities. Cost-benefit analysis: Enhanced learning through personalized, context-aware AI assistance justifies API expenses.
+- Alternatives Considered: Pure self-hosted Llama 2 (rejected due to limited context window and conversational abilities)
+
 ---
 
 This technical architecture document serves as the definitive reference for system design decisions, component interactions, and implementation patterns across the Little Monster platform.
 
-**Last Updated**: October 30, 2025  
+**Last Updated**: October 30, 2025 - Updated with GPT-OSS + RAG Architecture
 **Next Review**: After Phase 1 completion or as architecture evolves
