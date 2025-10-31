@@ -9,6 +9,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
+import { queueTranscription } from '../../services/job-processor';
 
 interface UploadAudioData {
   userId: string;
@@ -111,6 +112,11 @@ export class AudioService {
         .remove([filename]);
       throw new Error('Failed to create audio record');
     }
+
+    // Queue transcription job (async, don't wait)
+    queueTranscription(audioRecord.id).catch(err => {
+      console.error('Failed to queue transcription:', err);
+    });
 
     return {
       id: audioRecord.id,
