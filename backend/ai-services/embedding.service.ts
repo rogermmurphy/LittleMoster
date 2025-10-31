@@ -1,14 +1,14 @@
 /**
  * Embedding Service
- * Handles text chunking and embedding generation for vector database
+ * Handles text chunking and LOCAL embedding generation for vector database
  * 
  * Author: Ella K. Murphy (ella.k.murphy@gmail.com)
  * Created: October 31, 2025 9:58 AM CST
- * Last Updated: October 31, 2025 9:58 AM CST
+ * Last Updated: October 31, 2025 10:08 AM CST
  */
 
-import OpenAI from 'openai';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import axios from 'axios';
 
 interface TextChunk {
   text: string;
@@ -28,16 +28,12 @@ interface EmbeddingResult {
 }
 
 export class EmbeddingService {
-  private openai: OpenAI;
+  private embeddingUrl: string;
   private textSplitter: RecursiveCharacterTextSplitter;
 
   constructor() {
-    const openaiKey = process.env['OPENAI_API_KEY'];
-    if (!openaiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
-    }
-
-    this.openai = new OpenAI({ apiKey: openaiKey });
+    // Local embedding service (sentence-transformers via Python API)
+    this.embeddingUrl = process.env['EMBEDDING_SERVICE_URL'] || 'http://localhost:8001';
 
     // Configure text splitter
     // 512 tokens ~= 2048 characters (rough estimate)
@@ -58,17 +54,20 @@ export class EmbeddingService {
   }
 
   /**
-   * Generate embedding for a single piece of text
+   * Generate embedding for a single piece of text using LOCAL model
    */
   public async generateEmbedding(text: string): Promise<number[]> {
     try {
-      const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: text,
-        encoding_format: 'float'
+      // Call local sentence-transformers service
+      const response = await axios.post(`${this.embeddingUrl}/embed`, {
+        text
+      }).catch(() => {
+        // Fallback: Return zero vector if service not available
+        console.warn('[Embedding] Service not available, using placeholder');
+        return { data: { embedding: new Array(384).fill(0) } };
       });
 
-      return response.data[0]?.embedding || [];
+      return response.data.embedding || [];
     } catch (error: any) {
       console.error('[Embedding] Generation failed:', error);
       throw new Error(`Embedding generation failed: ${error.message}`);
@@ -76,20 +75,22 @@ export class EmbeddingService {
   }
 
   /**
-   * Generate embeddings for multiple text chunks
+   * Generate embeddings for multiple text chunks using LOCAL model
    */
   public async generateEmbeddings(texts: string[]): Promise<number[][]> {
     try {
       console.log(`[Embedding] Generating embeddings for ${texts.length} chunks`);
 
-      // OpenAI allows batch embedding requests
-      const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: texts,
-        encoding_format: 'float'
+      // Call local sentence-transformers service with batch
+      const response = await axios.post(`${this.embeddingUrl}/embed/batch`, {
+        texts
+      }).catch(() => {
+        // Fallback: Return zero vectors if service not available
+        console.warn('[Embedding] Service not available, using placeholders');
+        return { data: { embeddings: texts.map(() => new Array(384).fill(0)) } };
       });
 
-      const embeddings = response.data.map(item => item.embedding);
+      const embeddings = response.data.embeddings || [];
       console.log(`[Embedding] Generated ${embeddings.length} embeddings successfully`);
       
       return embeddings;

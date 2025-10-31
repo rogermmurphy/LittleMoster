@@ -72,6 +72,25 @@ services:
     networks:
       - lm-network
 
+  # Ollama - Local LLM inference (GPT-OSS)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lm-ollama
+    ports:
+      - "11434:11434"  # Ollama API
+    volumes:
+      - ollama-data:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - lm-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
 volumes:
   redis-data:
     name: lm-redis-data
@@ -81,6 +100,8 @@ volumes:
     name: lm-qdrant-data
   chroma-data:
     name: lm-chroma-data
+  ollama-data:
+    name: lm-ollama-data
 
 networks:
   lm-network:

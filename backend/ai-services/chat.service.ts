@@ -7,9 +7,9 @@
  * Last Updated: October 31, 2025 10:00 AM CST
  */
 
-import OpenAI from 'openai';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { VectorDBService } from './vector-db.service';
+import axios from 'axios';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -43,17 +43,13 @@ interface ChatResponse {
 }
 
 export class ChatService {
-  private openai: OpenAI;
+  private ollamaUrl: string;
   private supabase: SupabaseClient;
   private vectorDB: VectorDBService;
 
   constructor() {
-    const openaiKey = process.env['OPENAI_API_KEY'];
-    if (!openaiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
-    }
-
-    this.openai = new OpenAI({ apiKey: openaiKey });
+    // Ollama runs locally, no API key needed!
+    this.ollamaUrl = process.env['OLLAMA_URL'] || 'http://localhost:11434';
 
     const supabaseUrl = process.env['SUPABASE_URL'];
     const supabaseKey = process.env['SUPABASE_SERVICE_ROLE_KEY'];
@@ -257,15 +253,19 @@ export class ChatService {
       { role: 'user', content: request.message }
     ];
 
-    // Call GPT-4
-    const completion = await this.openai.chat.completions.create({
-      model: 'gpt-4-turbo-preview',
-      messages: messages as any,
-      temperature: 0.7,
-      max_tokens: 1000
+    // Call GPT-OSS via Ollama (fully local!)
+    const response = await axios.post(`${this.ollamaUrl}/api/chat`, {
+      model: 'gpt-oss',
+      messages: messages.map(m => ({ role: m.role, content: m.content })),
+      stream: false,
+      options: {
+        temperature: 0.7,
+        num_predict: 1000
+      }
     });
 
-    const assistantMessage = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
+    const assistantMessage = response.data.message?.content || 'Sorry, I could not generate a response.';
+    const tokenCount = response.data.eval_count || 0;
 
     // Store user message
     await this.supabase
@@ -286,7 +286,7 @@ export class ChatService {
         role: 'assistant',
         content: assistantMessage,
         sources: sources.length > 0 ? sources : null,
-        token_count: completion.usage?.completion_tokens || 0
+        token_count: tokenCount
       })
       .select()
       .single();
