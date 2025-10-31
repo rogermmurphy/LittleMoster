@@ -15,6 +15,8 @@ import audioRoutes from '../api/routes/audio.routes';
 import photoRoutes from '../api/routes/photo.routes';
 import textbookRoutes from '../api/routes/textbook.routes';
 import chatRoutes from '../api/routes/chat.routes';
+import notesRoutes from '../api/routes/notes.routes';
+import assignmentsRoutes from '../api/routes/assignments.routes';
 
 const app: Express = express();
 const PORT = process.env['PORT'] || 3000;
@@ -48,6 +50,8 @@ app.use('/api/audio', audioRoutes);
 app.use('/api/photos', photoRoutes);
 app.use('/api/textbooks', textbookRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/notes', notesRoutes);
+app.use('/api/assignments', assignmentsRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
