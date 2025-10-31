@@ -13,12 +13,9 @@ const authService = new AuthService();
 // Validation schemas
 const registerSchema = z.object({
   email: z.string().email('Invalid email format'),
-  username: z.string().min(3, 'Username must be at least 3 characters').max(50),
-  fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  state: z.string().optional(),
-  gradeLevel: z.string().optional(),
-  schoolName: z.string().optional()
+  firstName: z.string().optional(),
+  lastName: z.string().optional()
 });
 
 const loginSchema = z.object({

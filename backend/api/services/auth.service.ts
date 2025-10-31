@@ -14,12 +14,9 @@ const JWT_REFRESH_EXPIRATION = process.env['JWT_REFRESH_EXPIRATION'] || '7d';
 
 interface RegisterData {
   email: string;
-  username: string;
-  fullName: string;
   password: string;
-  state?: string;
-  gradeLevel?: string;
-  schoolName?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 interface LoginData {
@@ -118,16 +115,25 @@ export class AuthService {
       throw new Error('Email already registered');
     }
 
-    // Check if username already exists
+    // Generate username from email if not provided
+    const username = data.email.split('@')[0];
+    
+    // Check if generated username already exists
     const { data: existingUsername } = await this.supabase
       .from('users')
       .select('id')
-      .eq('username', data.username)
+      .eq('username', username)
       .single();
 
-    if (existingUsername) {
-      throw new Error('Username already taken');
-    }
+    // If username exists, append random number
+    const finalUsername = existingUsername 
+      ? `${username}${Math.floor(Math.random() * 1000)}`
+      : username;
+
+    // Create full name from firstName and lastName
+    const fullName = data.firstName && data.lastName
+      ? `${data.firstName} ${data.lastName}`
+      : data.firstName || data.lastName || data.email.split('@')[0];
 
     // Hash password
     const passwordHash = await this.hashPassword(data.password);
@@ -137,12 +143,9 @@ export class AuthService {
       .from('users')
       .insert({
         email: data.email,
-        username: data.username,
-        full_name: data.fullName,
+        username: finalUsername,
+        full_name: fullName,
         password_hash: passwordHash,
-        state: data.state || null,
-        grade_level: data.gradeLevel || null,
-        school_name: data.schoolName || null,
         is_active: true
       })
       .select()
@@ -168,10 +171,7 @@ export class AuthService {
         id: newUser.id,
         email: newUser.email,
         username: newUser.username,
-        fullName: newUser.full_name,
-        state: newUser.state,
-        gradeLevel: newUser.grade_level,
-        schoolName: newUser.school_name
+        fullName: newUser.full_name
       },
       accessToken,
       refreshToken
