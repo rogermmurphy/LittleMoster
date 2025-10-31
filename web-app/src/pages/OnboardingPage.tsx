@@ -1,10 +1,14 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Upload, FileText, Image as ImageIcon, Plus, Check, Mic, Camera, BookOpen, Bell, Shield, Clock } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
 
 type OnboardingStep = 'welcome' | 'account' | 'classes' | 'tutorial' | 'preferences' | 'complete'
 
 export default function OnboardingPage() {
+  const navigate = useNavigate()
+  const { register, isLoading, error } = useAuth()
+  
   const [step, setStep] = useState<OnboardingStep>('welcome')
   const [uploadMethod, setUploadMethod] = useState<'upload' | 'manual'>('manual')
   const [selectedClasses, setSelectedClasses] = useState<string[]>([])
@@ -12,12 +16,10 @@ export default function OnboardingPage() {
   // Account setup state
   const [accountData, setAccountData] = useState({
     email: '',
-    username: '',
     password: '',
     confirmPassword: '',
-    state: '',
-    gradeLevel: '',
-    schoolName: ''
+    firstName: '',
+    lastName: ''
   })
   
   // Preferences state
@@ -35,6 +37,35 @@ export default function OnboardingPage() {
     { id: 'us-hist', name: 'US History', teacher: 'Mr. Wilson', period: '4th', color: 'bg-yellow-500' },
     { id: 'bio-1', name: 'Biology I', teacher: 'Dr. Garcia', period: '5th', color: 'bg-pink-500' },
   ]
+
+  const handleRegister = async () => {
+    // Validate passwords match
+    if (accountData.password !== accountData.confirmPassword) {
+      alert('Passwords do not match')
+      return
+    }
+
+    // Validate required fields
+    if (!accountData.email || !accountData.password) {
+      alert('Email and password are required')
+      return
+    }
+
+    try {
+      await register({
+        email: accountData.email,
+        password: accountData.password,
+        firstName: accountData.firstName || undefined,
+        lastName: accountData.lastName || undefined
+      })
+      
+      // Registration successful, move to next step
+      setStep('classes')
+    } catch (err) {
+      console.error('Registration failed:', err)
+      // Error is already set in the auth store
+    }
+  }
 
   const WelcomeStep = () => (
     <div className="text-center max-w-2xl mx-auto">
@@ -72,104 +103,89 @@ export default function OnboardingPage() {
       <h2 className="text-3xl font-bold mb-2">Create Your Account</h2>
       <p className="text-gray-600 mb-8">Let's set up your personalized study space</p>
 
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <p className="font-medium">Registration Error</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
       <div className="card space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Email Address</label>
+            <label className="block text-sm font-medium mb-2">First Name</label>
             <input 
-              type="email" 
-              placeholder="you@school.edu"
-              value={accountData.email}
-              onChange={(e) => setAccountData({...accountData, email: e.target.value})}
+              type="text" 
+              placeholder="John"
+              value={accountData.firstName}
+              onChange={(e) => setAccountData({...accountData, firstName: e.target.value})}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Username</label>
+            <label className="block text-sm font-medium mb-2">Last Name</label>
             <input 
               type="text" 
-              placeholder="your_username"
-              value={accountData.username}
-              onChange={(e) => setAccountData({...accountData, username: e.target.value})}
+              placeholder="Doe"
+              value={accountData.lastName}
+              onChange={(e) => setAccountData({...accountData, lastName: e.target.value})}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm font-medium mb-2">Email Address *</label>
+          <input 
+            type="email" 
+            placeholder="you@school.edu"
+            value={accountData.email}
+            onChange={(e) => setAccountData({...accountData, email: e.target.value})}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            required
+          />
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
+            <label className="block text-sm font-medium mb-2">Password *</label>
             <input 
               type="password" 
               placeholder="••••••••"
               value={accountData.password}
               onChange={(e) => setAccountData({...accountData, password: e.target.value})}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Confirm Password</label>
+            <label className="block text-sm font-medium mb-2">Confirm Password *</label>
             <input 
               type="password" 
               placeholder="••••••••"
               value={accountData.confirmPassword}
               onChange={(e) => setAccountData({...accountData, confirmPassword: e.target.value})}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              required
             />
           </div>
         </div>
 
-        <div className="border-t pt-6">
-          <h3 className="font-semibold mb-4">Your School Information</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">State</label>
-              <select 
-                value={accountData.state}
-                onChange={(e) => setAccountData({...accountData, state: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="">Select State</option>
-                <option value="TX">Texas</option>
-                <option value="CA">California</option>
-                <option value="NY">New York</option>
-                <option value="FL">Florida</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Grade Level</label>
-              <select 
-                value={accountData.gradeLevel}
-                onChange={(e) => setAccountData({...accountData, gradeLevel: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="">Select Grade</option>
-                <option value="9">9th Grade (Freshman)</option>
-                <option value="10">10th Grade (Sophomore)</option>
-                <option value="11">11th Grade (Junior)</option>
-                <option value="12">12th Grade (Senior)</option>
-              </select>
-            </div>
-          </div>
-          <div className="mt-4">
-            <label className="block text-sm font-medium mb-2">School Name</label>
-            <input 
-              type="text" 
-              placeholder="Your High School"
-              value={accountData.schoolName}
-              onChange={(e) => setAccountData({...accountData, schoolName: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
+        <div className="text-sm text-gray-500">
+          * Required fields
         </div>
       </div>
 
       <div className="flex justify-between mt-8">
-        <button onClick={() => setStep('welcome')} className="btn-secondary">
+        <button onClick={() => setStep('welcome')} className="btn-secondary" disabled={isLoading}>
           ← Back
         </button>
-        <button onClick={() => setStep('classes')} className="btn-primary">
-          Continue →
+        <button 
+          onClick={handleRegister} 
+          className="btn-primary"
+          disabled={isLoading || !accountData.email || !accountData.password}
+        >
+          {isLoading ? 'Creating Account...' : 'Continue →'}
         </button>
       </div>
     </div>
@@ -224,31 +240,9 @@ export default function OnboardingPage() {
         </div>
       ) : (
         <div className="card">
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">State</label>
-                <select className="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                  <option>Texas</option>
-                  <option>California</option>
-                  <option>New York</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Grade Level</label>
-                <select className="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                  <option>9th Grade (Freshman)</option>
-                  <option>10th Grade (Sophomore)</option>
-                  <option>11th Grade (Junior)</option>
-                  <option>12th Grade (Senior)</option>
-                </select>
-              </div>
-            </div>
-            <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-primary-500 hover:text-primary-600 transition-colors">
-              <Plus className="w-5 h-5 inline mr-2" />
-              Add Class
-            </button>
-          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            You can add classes manually later from your dashboard. Click Continue to skip this step.
+          </p>
         </div>
       )}
 
@@ -446,70 +440,6 @@ export default function OnboardingPage() {
     </div>
   )
 
-  const ClassesStep = () => (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-3xl font-bold mb-2">Review Your Classes</h2>
-      <p className="text-gray-600 mb-8">Select the classes you want to track this semester</p>
-
-      <div className="grid grid-cols-1 gap-4 mb-8">
-        {availableClasses.map((cls) => {
-          const isSelected = selectedClasses.includes(cls.id)
-          return (
-            <div
-              key={cls.id}
-              onClick={() => {
-                if (isSelected) {
-                  setSelectedClasses(selectedClasses.filter(id => id !== cls.id))
-                } else {
-                  setSelectedClasses([...selectedClasses, cls.id])
-                }
-              }}
-              className={`card cursor-pointer transition-all ${
-                isSelected ? 'ring-2 ring-primary-600 bg-primary-50' : 'hover:shadow-lg'
-              }`}
-            >
-              <div className="flex items-center">
-                <div className={`w-4 h-4 rounded-full ${cls.color} mr-4`}></div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{cls.name}</h3>
-                  <p className="text-sm text-gray-600">{cls.teacher} • {cls.period} Period</p>
-                </div>
-                {isSelected && <Check className="w-6 h-6 text-primary-600" />}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="card bg-yellow-50 border-yellow-200 mb-8">
-        <h3 className="font-semibold mb-2 flex items-center">
-          <span className="text-xl mr-2">📚</span>
-          Upload Textbooks (Optional)
-        </h3>
-        <p className="text-sm text-gray-700 mb-4">
-          Upload your textbooks to build a personalized knowledge base for AI tutoring
-        </p>
-        <button className="btn-secondary">
-          <Upload className="w-4 h-4 inline mr-2" />
-          Add Textbooks Later
-        </button>
-      </div>
-
-      <div className="flex justify-between">
-        <button onClick={() => setStep('account')} className="btn-secondary">
-          ← Back
-        </button>
-        <button 
-          onClick={() => setStep('tutorial')} 
-          className="btn-primary"
-          disabled={selectedClasses.length === 0}
-        >
-          Continue ({selectedClasses.length} classes) →
-        </button>
-      </div>
-    </div>
-  )
-
   const CompleteStep = () => (
     <div className="text-center max-w-2xl mx-auto">
       <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -540,9 +470,9 @@ export default function OnboardingPage() {
           </li>
         </ul>
       </div>
-      <Link to="/dashboard" className="btn-primary text-lg px-8 py-4 inline-block">
+      <button onClick={() => navigate('/home')} className="btn-primary text-lg px-8 py-4">
         Go to My Classes →
-      </Link>
+      </button>
     </div>
   )
 

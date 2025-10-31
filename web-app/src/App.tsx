@@ -1,5 +1,7 @@
-import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Home, BookOpen, Gamepad2, Library, Palette } from 'lucide-react'
+import { useAuthStore } from './stores/auth.store'
 import OnboardingPage from './pages/OnboardingPage'
 import HomePage from './pages/HomePage'
 import ClassDashboardPage from './pages/ClassDashboardPage'
@@ -9,6 +11,28 @@ import LibraryPage from './pages/LibraryPage'
 import CustomizeLMPage from './pages/CustomizeLMPage'
 import ClassmatesPage from './pages/ClassmatesPage'
 import GlobalAIChatbot from './components/GlobalAIChatbot'
+
+// Create QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+})
+
+// Protected Route Component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />
+  }
+  
+  return <>{children}</>
+}
 
 function Navigation() {
   const location = useLocation()
@@ -50,7 +74,7 @@ function Navigation() {
             </div>
           </div>
           <div className="flex items-center">
-            <div className="text-sm text-gray-600">Demo Mode</div>
+            <div className="text-sm text-gray-600">Connected to API</div>
           </div>
         </div>
       </div>
@@ -60,72 +84,74 @@ function Navigation() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
-        {/* Global AI Chatbot - Always visible on right side */}
-        <GlobalAIChatbot />
-        
-        <Routes>
-          <Route path="/" element={<OnboardingPage />} />
-          <Route path="/home" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <HomePage />
-              </main>
-            </>
-          } />
-          <Route path="/classes" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <ClassDashboardPage />
-              </main>
-            </>
-          } />
-          <Route path="/class/:classId" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <ClassDetailPage />
-              </main>
-            </>
-          } />
-          <Route path="/play" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <MonsterPlayPage />
-              </main>
-            </>
-          } />
-          <Route path="/library" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <LibraryPage />
-              </main>
-            </>
-          } />
-          <Route path="/customize" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <CustomizeLMPage />
-              </main>
-            </>
-          } />
-          <Route path="/classmates" element={
-            <>
-              <Navigation />
-              <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <ClassmatesPage />
-              </main>
-            </>
-          } />
-        </Routes>
-      </div>
-    </BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <div className="min-h-screen bg-gray-50">
+          {/* Global AI Chatbot - Always visible on right side */}
+          <GlobalAIChatbot />
+          
+          <Routes>
+            <Route path="/" element={<OnboardingPage />} />
+            <Route path="/home" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <HomePage />
+                </main>
+              </ProtectedRoute>
+            } />
+            <Route path="/classes" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <ClassDashboardPage />
+                </main>
+              </ProtectedRoute>
+            } />
+            <Route path="/class/:classId" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <ClassDetailPage />
+                </main>
+              </ProtectedRoute>
+            } />
+            <Route path="/play" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <MonsterPlayPage />
+                </main>
+              </ProtectedRoute>
+            } />
+            <Route path="/library" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <LibraryPage />
+                </main>
+              </ProtectedRoute>
+            } />
+            <Route path="/customize" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <CustomizeLMPage />
+                </main>
+              </ProtectedRoute>
+            } />
+            <Route path="/classmates" element={
+              <ProtectedRoute>
+                <Navigation />
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                  <ClassmatesPage />
+                </main>
+              </ProtectedRoute>
+            } />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    </QueryClientProvider>
   )
 }
 

@@ -1,78 +1,125 @@
-import { TrendingUp, Clock, Video, Award, Upload, FileText, Film, Calendar, Zap } from 'lucide-react'
+import { TrendingUp, Clock, FileText, Award, Upload, Film, Calendar, Zap, BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { classesApi } from '../api/classes.api'
+import { assignmentsApi } from '../api/assignments.api'
+import { notesApi } from '../api/notes.api'
+import { useAuthStore } from '../stores/auth.store'
 
 export default function HomePage() {
-  const dashboardStats = {
-    studyStreak: 5,
-    focusTime: 42,
-    videosCreated: 3,
-    avgScore: 89
-  }
+  const user = useAuthStore((state) => state.user)
 
-  const recentWork = [
-    { id: 1, title: 'Chemistry Notes', type: 'note', icon: FileText, class: 'Chemistry I', date: 'Today' },
-    { id: 2, title: 'WWII Causes Video', type: 'video', icon: Film, class: 'US History', date: 'Yesterday' },
-    { id: 3, title: 'Algebra Quiz Results', type: 'quiz', icon: Award, class: 'Calculus I', date: '2 days ago' },
-  ]
+  // Fetch all classes
+  const { data: classes = [] } = useQuery({
+    queryKey: ['classes'],
+    queryFn: classesApi.getAll
+  })
 
-  const communityHighlights = [
-    { title: 'Photosynthesis in 90 Sec', rating: 4.8, views: 1240 },
-    { title: 'Renaissance Art', rating: 4.7, views: 980 },
-    { title: "Newton's Laws", rating: 4.6, views: 1520 },
+  // Fetch all assignments across classes
+  const allAssignments = classes.flatMap(cls => {
+    const { data = [] } = useQuery({
+      queryKey: ['assignments', cls.id],
+      queryFn: () => assignmentsApi.getByClass(cls.id)
+    })
+    return data
+  })
+
+  // Fetch all notes across classes
+  const allNotes = classes.flatMap(cls => {
+    const { data = [] } = useQuery({
+      queryKey: ['notes', cls.id],
+      queryFn: () => notesApi.getByClass(cls.id)
+    })
+    return data
+  })
+
+  // Calculate stats
+  const completedAssignments = allAssignments.filter(a => a.status === 'completed').length
+  const pendingAssignments = allAssignments.filter(a => a.status === 'pending').length
+  const totalNotes = allNotes.length
+
+  // Get recent activity (notes and assignments)
+  const recentActivity = [
+    ...allNotes.slice(0, 5).map(note => ({
+      id: note.id,
+      title: note.title,
+      type: 'note' as const,
+      icon: FileText,
+      className: classes.find(c => c.id === note.classId)?.name || 'Unknown',
+      date: new Date(note.createdAt).toLocaleDateString()
+    })),
+    ...allAssignments.slice(0, 5).map(assignment => ({
+      id: assignment.id,
+      title: assignment.title,
+      type: 'assignment' as const,
+      icon: Calendar,
+      className: classes.find(c => c.id === assignment.classId)?.name || 'Unknown',
+      date: new Date(assignment.createdAt).toLocaleDateString()
+    }))
   ]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6)
 
   return (
     <div className="space-y-8">
       {/* Welcome Header */}
       <div>
-        <h1 className="text-3xl font-bold mb-2">Welcome back, Ella!</h1>
+        <h1 className="text-3xl font-bold mb-2">
+          Welcome back, {user?.firstName || user?.email?.split('@')[0] || 'Student'}!
+        </h1>
         <p className="text-gray-600">LM's ready to make your study day sparkle ✨</p>
       </div>
 
-      {/* Dashboard Summary & Personalized Feed */}
+      {/* Dashboard Summary & Quick Stats */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Dashboard Summary */}
         <div className="card">
           <h2 className="font-semibold text-lg mb-4">Dashboard Summary</h2>
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-orange-50 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-gray-600">Study Streak</span>
-              <span className="font-bold text-lg">🔥 {dashboardStats.studyStreak} days</span>
-            </div>
-            <div className="rounded-xl bg-purple-50 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-gray-600">Focus Time</span>
-              <span className="font-bold text-lg">{dashboardStats.focusTime} min</span>
-            </div>
             <div className="rounded-xl bg-blue-50 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-gray-600">Videos Created</span>
-              <span className="font-bold text-lg">{dashboardStats.videosCreated}</span>
+              <span className="text-sm text-gray-600">Classes</span>
+              <span className="font-bold text-lg">{classes.length}</span>
             </div>
             <div className="rounded-xl bg-green-50 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-gray-600">Avg Score</span>
-              <span className="font-bold text-lg">{dashboardStats.avgScore}%</span>
+              <span className="text-sm text-gray-600">Notes</span>
+              <span className="font-bold text-lg">{totalNotes}</span>
+            </div>
+            <div className="rounded-xl bg-yellow-50 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm text-gray-600">Pending</span>
+              <span className="font-bold text-lg">{pendingAssignments}</span>
+            </div>
+            <div className="rounded-xl bg-purple-50 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm text-gray-600">Completed</span>
+              <span className="font-bold text-lg">{completedAssignments}</span>
             </div>
           </div>
         </div>
 
         {/* Personalized Feed */}
         <div className="card">
-          <h2 className="font-semibold text-lg mb-4">Personalized Feed</h2>
-          <ul className="space-y-2 text-sm mb-4">
-            <li className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
-              <span className="text-yellow-600">📝</span>
-              <span>Review: <b>Covalent Bonds</b></span>
-            </li>
-            <li className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
-              <span className="text-blue-600">🎬</span>
-              <span>Watch: <b>Renaissance 101</b></span>
-            </li>
-            <li className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50">
-              <span className="text-green-600">💯</span>
-              <span>Quiz: <b>Ionic vs Covalent</b></span>
-            </li>
-          </ul>
-          <div className="text-xs text-gray-500 bg-yellow-50 p-3 rounded-lg">
-            <span className="font-medium">Motivation:</span> You're killing it today 🔥 • One more video = 1 LM Coin 💅
+          <h2 className="font-semibold text-lg mb-4">Quick Links</h2>
+          <div className="space-y-2">
+            <Link to="/classes" className="flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <BookOpen className="w-5 h-5 text-blue-600" />
+              <div className="flex-1">
+                <div className="font-medium text-sm">View All Classes</div>
+                <div className="text-xs text-gray-600">{classes.length} classes</div>
+              </div>
+            </Link>
+            <Link to="/planner" className="flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+              <Calendar className="w-5 h-5 text-green-600" />
+              <div className="flex-1">
+                <div className="font-medium text-sm">Study Planner</div>
+                <div className="text-xs text-gray-600">{pendingAssignments} pending assignments</div>
+              </div>
+            </Link>
+            <button className="w-full flex items-center gap-2 p-3 rounded-lg hover:bg-gray-50 transition-colors text-left">
+              <Upload className="w-5 h-5 text-purple-600" />
+              <div className="flex-1">
+                <div className="font-medium text-sm">Upload Content</div>
+                <div className="text-xs text-gray-600">Audio, photos, or textbooks</div>
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -83,59 +130,46 @@ export default function HomePage() {
         <div className="card">
           <h2 className="font-semibold text-lg mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-3">
-            <button className="px-4 py-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 flex items-center gap-2 transition-colors">
+            <Link to="/classes" className="px-4 py-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 flex items-center gap-2 transition-colors">
               <Upload className="w-5 h-5" />
               <span className="font-medium">Upload File</span>
-            </button>
-            <button className="px-4 py-3 rounded-xl bg-green-50 hover:bg-green-100 text-green-700 flex items-center gap-2 transition-colors">
+            </Link>
+            <Link to="/classes" className="px-4 py-3 rounded-xl bg-green-50 hover:bg-green-100 text-green-700 flex items-center gap-2 transition-colors">
               <FileText className="w-5 h-5" />
-              <span className="font-medium">Generate Notes</span>
-            </button>
-            <button className="px-4 py-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 flex items-center gap-2 transition-colors">
+              <span className="font-medium">Create Note</span>
+            </Link>
+            <Link to="/chat" className="px-4 py-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 flex items-center gap-2 transition-colors">
               <Film className="w-5 h-5" />
-              <span className="font-medium">Create Video</span>
-            </button>
-            <button className="px-4 py-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 flex items-center gap-2 transition-colors">
+              <span className="font-medium">AI Chat</span>
+            </Link>
+            <Link to="/planner" className="px-4 py-3 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 flex items-center gap-2 transition-colors">
               <Calendar className="w-5 h-5" />
               <span className="font-medium">Open Planner</span>
-            </button>
+            </Link>
           </div>
         </div>
 
         {/* Recent Work */}
         <div className="card">
-          <h2 className="font-semibold text-lg mb-4">Recent Work</h2>
-          <div className="space-y-2">
-            {recentWork.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
-                <item.icon className="w-5 h-5 text-gray-600" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm">{item.title}</div>
-                  <div className="text-xs text-gray-600">{item.class} • {item.date}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Community Highlights */}
-      <div className="card">
-        <h2 className="font-semibold text-lg mb-4">Community Highlights</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {communityHighlights.map((video, idx) => (
-            <div key={idx} className="rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 p-4 hover:shadow-md transition-shadow cursor-pointer">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-yellow-500">⭐</span>
-                <span className="font-bold text-sm">{video.rating}</span>
-                <span className="text-xs text-gray-500">• {video.views} views</span>
-              </div>
-              <div className="font-medium text-sm mb-2">{video.title}</div>
-              <button className="w-full px-3 py-2 rounded-lg bg-primary-600 text-white text-xs hover:bg-primary-700 transition-colors">
-                Watch Now
-              </button>
+          <h2 className="font-semibold text-lg mb-4">Recent Activity</h2>
+          {recentActivity.length === 0 ? (
+            <div className="text-center py-6 text-gray-500">
+              <p className="text-sm">No recent activity</p>
+              <p className="text-xs mt-1">Start by adding classes and uploading content!</p>
             </div>
-          ))}
+          ) : (
+            <div className="space-y-2">
+              {recentActivity.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer">
+                  <item.icon className="w-5 h-5 text-gray-600" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{item.title}</div>
+                    <div className="text-xs text-gray-600">{item.className} • {item.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -148,7 +182,7 @@ export default function HomePage() {
               Monster Play Progress
             </h2>
             <p className="text-sm text-gray-700 mb-3">
-              XP 230 • LM Coins 🪙 48 • High Score 🔥 9,870
+              Track your study progress and earn rewards!
             </p>
             <Link to="/play" className="text-sm text-primary-600 hover:underline font-medium">
               Play games to earn rewards →
