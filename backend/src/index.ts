@@ -13,6 +13,7 @@ import authRoutes from '../api/routes/auth.routes';
 import classesRoutes from '../api/routes/classes.routes';
 import audioRoutes from '../api/routes/audio.routes';
 import photoRoutes from '../api/routes/photo.routes';
+import textbookRoutes from '../api/routes/textbook.routes';
 
 const app: Express = express();
 const PORT = process.env['PORT'] || 3000;
@@ -44,6 +45,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/classes', classesRoutes);
 app.use('/api/audio', audioRoutes);
 app.use('/api/photos', photoRoutes);
+app.use('/api/textbooks', textbookRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -96,6 +98,12 @@ app.listen(PORT, () => {
   console.log(`   GET    /api/photos/:id`);
   console.log(`   PATCH  /api/photos/:id`);
   console.log(`   DELETE /api/photos/:id`);
+  console.log('   Textbooks:');
+  console.log(`   POST   /api/textbooks/upload`);
+  console.log(`   GET    /api/textbooks?classId=xxx`);
+  console.log(`   GET    /api/textbooks/:id`);
+  console.log(`   PATCH  /api/textbooks/:id`);
+  console.log(`   DELETE /api/textbooks/:id`);
   console.log('\n✅ Server ready to accept connections\n');
 });
 
