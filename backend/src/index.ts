@@ -14,6 +14,7 @@ import classesRoutes from '../api/routes/classes.routes';
 import audioRoutes from '../api/routes/audio.routes';
 import photoRoutes from '../api/routes/photo.routes';
 import textbookRoutes from '../api/routes/textbook.routes';
+import chatRoutes from '../api/routes/chat.routes';
 
 const app: Express = express();
 const PORT = process.env['PORT'] || 3000;
@@ -46,6 +47,7 @@ app.use('/api/classes', classesRoutes);
 app.use('/api/audio', audioRoutes);
 app.use('/api/photos', photoRoutes);
 app.use('/api/textbooks', textbookRoutes);
+app.use('/api/chat', chatRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -104,6 +106,11 @@ app.listen(PORT, () => {
   console.log(`   GET    /api/textbooks/:id`);
   console.log(`   PATCH  /api/textbooks/:id`);
   console.log(`   DELETE /api/textbooks/:id`);
+  console.log('   AI Chat:');
+  console.log(`   POST   /api/chat`);
+  console.log(`   GET    /api/chat/conversations?classId=xxx`);
+  console.log(`   GET    /api/chat/:conversationId`);
+  console.log(`   DELETE /api/chat/:conversationId`);
   console.log('\n✅ Server ready to accept connections\n');
 });
 
